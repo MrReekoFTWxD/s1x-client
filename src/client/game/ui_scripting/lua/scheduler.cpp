@@ -14,6 +14,24 @@ namespace ui_scripting::lua
 		};
 	}
 
+	void scheduler::dispatch(const event& event)
+	{
+		auto deleter = [&](task_list& tasks)
+		{
+			for (auto& task : tasks)
+			{
+				for (auto& condition : task.endon_conditions)
+				{
+					if (condition == event.name)
+					{
+						task.is_deleted = true;
+						break;
+					}
+				}
+			}
+		};
+	}
+
 	void scheduler::run_frame()
 	{
 		callbacks_.access([&](task_list& tasks)
@@ -87,6 +105,26 @@ namespace ui_scripting::lua
 		});
 
 		return {id};
+	}
+
+	void scheduler::add_endon_condition(const task_handle& handle, const std::string& event)
+	{
+		auto merger = [&](task_list& tasks)
+		{
+			for (auto& task : tasks)
+			{
+				if (task.id == handle.id)
+				{
+					task.endon_conditions.emplace_back(event);
+				}
+			}
+		};
+
+		callbacks_.access([&](task_list& tasks)
+			{
+				merger(tasks);
+				new_callbacks_.access(merger);
+			});
 	}
 
 	void scheduler::remove(const task_handle& handle)
